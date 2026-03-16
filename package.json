@@ -6,12 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed",
     "db:init": "prisma migrate deploy",
-    "db:init:fallback": "python scripts/init_db.py",
     "db:reset": "prisma migrate reset --force"
   },
   "dependencies": {
