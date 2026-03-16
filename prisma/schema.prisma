@@ -1,0 +1,39 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Game {
+  id                   Int            @id @default(autoincrement())
+  game_name            String
+  platform             String
+  discovered_at        DateTime       @default(now())
+  youtube_24h_count    Int
+  youtube_growth_score Float
+  fit_score            Float
+  serp_gap_score       Float
+  total_score          Float
+  suggested_tool       String
+  action               String
+  notes                String?
+  keyword_checks       KeywordCheck[]
+
+  @@map("games")
+}
+
+model KeywordCheck {
+  id            Int      @id @default(autoincrement())
+  game_id       Int
+  keyword       String
+  has_tool_site Boolean
+  serp_summary  String
+  checked_at    DateTime @default(now())
+  game          Game     @relation(fields: [game_id], references: [id], onDelete: Cascade)
+
+  @@index([game_id])
+  @@map("keyword_checks")
+}
