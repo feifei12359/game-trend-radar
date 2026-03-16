@@ -15,7 +15,7 @@ const QUERIES = [
 ] as const;
 
 const YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search";
-const CACHE_PATH = path.join(process.cwd(), "data", "youtube-query-cache.json");
+const CACHE_PATH = path.join(process.cwd(), "data", "youtube-cache.json");
 const MAX_RECENT_VIDEO_IDS = 300;
 const STOP_WORDS = new Set([
   "new",
@@ -79,8 +79,8 @@ type SearchResponse = {
 };
 
 type CacheFile = {
-  queryDates: Record<string, string>;
-  recentVideoIds: string[];
+  queries: Record<string, string>;
+  processedVideoIds: string[];
 };
 
 type Candidate = {
@@ -113,7 +113,7 @@ async function main() {
   const cache = await readCache();
   const todayUtc = new Date().toISOString().slice(0, 10);
   const publishedAfter = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const seenVideoIds = new Set(cache.recentVideoIds);
+  const seenVideoIds = new Set(cache.processedVideoIds);
   const seenCandidates = new Set<string>();
 
   let queriedCount = 0;
@@ -124,7 +124,7 @@ async function main() {
 
   try {
     for (const query of QUERIES) {
-      if (cache.queryDates[query] === todayUtc) {
+      if (cache.queries[query] === todayUtc) {
         console.log(`query: ${query}`);
         console.log("skipped query (already fetched today)");
         continue;
@@ -211,7 +211,7 @@ async function main() {
         stats.updated += result.updated;
       }
 
-      cache.queryDates[query] = todayUtc;
+      cache.queries[query] = todayUtc;
       totalCandidates += stats.candidates;
       totalInserted += stats.inserted;
       totalUpdated += stats.updated;
@@ -220,7 +220,7 @@ async function main() {
       console.log(`inserted: ${stats.inserted}, updated: ${stats.updated}`);
     }
   } finally {
-    cache.recentVideoIds = Array.from(seenVideoIds).slice(-MAX_RECENT_VIDEO_IDS);
+    cache.processedVideoIds = Array.from(seenVideoIds).slice(-MAX_RECENT_VIDEO_IDS);
     await writeCache(cache);
     await prisma.$disconnect();
   }
@@ -508,8 +508,8 @@ async function readCache(): Promise<CacheFile> {
     const parsed = JSON.parse(raw) as Partial<CacheFile>;
 
     return {
-      queryDates: parsed.queryDates ?? {},
-      recentVideoIds: Array.isArray(parsed.recentVideoIds) ? parsed.recentVideoIds : [],
+      queries: parsed.queries ?? {},
+      processedVideoIds: Array.isArray(parsed.processedVideoIds) ? parsed.processedVideoIds : [],
     };
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
@@ -517,16 +517,16 @@ async function readCache(): Promise<CacheFile> {
     }
 
     return {
-      queryDates: {},
-      recentVideoIds: [],
+      queries: {},
+      processedVideoIds: [],
     };
   }
 }
 
 async function writeCache(cache: CacheFile) {
   const stableCache: CacheFile = {
-    queryDates: cache.queryDates,
-    recentVideoIds: cache.recentVideoIds.slice(-MAX_RECENT_VIDEO_IDS),
+    queries: cache.queries,
+    processedVideoIds: cache.processedVideoIds.slice(-MAX_RECENT_VIDEO_IDS),
   };
 
   await writeFile(CACHE_PATH, JSON.stringify(stableCache, null, 2) + "\n", "utf8");
