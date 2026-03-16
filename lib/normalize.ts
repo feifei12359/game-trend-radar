@@ -1,7 +1,9 @@
 export function normalizeGameName(value: string): string {
-  return value
+  const normalized = value
     .trim()
     .toLowerCase()
-    .replace(/^[^a-z0-9]+|[^a-z0-9]+$/gi, "")
+    .replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu, "")
     .replace(/\s+/g, " ");
+
+  return normalized || "";
 }
