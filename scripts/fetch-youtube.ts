@@ -17,6 +17,7 @@ const QUERIES = [
 const YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search";
 const CACHE_PATH = path.join(process.cwd(), "data", "youtube-cache.json");
 const MAX_RECENT_VIDEO_IDS = 300;
+const FETCH_TIMEOUT_MS = 12_000;
 const STOP_WORDS = new Set([
   "new",
   "update",
@@ -56,6 +57,18 @@ const STOP_WORDS = new Set([
   "pc",
   "mobile",
 ]);
+const BAD_PHRASES = new Set([
+  "tower defense",
+  "new game",
+  "new update",
+  "update",
+  "codes",
+  "gameplay",
+  "gameplay trailer",
+  "trailer",
+  "guide",
+  "tips",
+]);
 
 type SearchItem = {
   id?: {
@@ -90,6 +103,13 @@ type Candidate = {
   videoId: string;
 };
 
+type ExistingGame = {
+  id: number;
+  game_name: string;
+  platform: string;
+  youtube_24h_count: number;
+};
+
 type QueryStats = {
   videos: number;
   candidates: number;
@@ -115,6 +135,20 @@ async function main() {
   const publishedAfter = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
   const seenVideoIds = new Set(cache.processedVideoIds);
   const seenCandidates = new Set<string>();
+  const existingGames = await prisma.game.findMany({
+    select: {
+      id: true,
+      game_name: true,
+      platform: true,
+      youtube_24h_count: true,
+    },
+  });
+  const gameMap = new Map<string, ExistingGame>();
+
+  for (const game of existingGames) {
+    const key = `${game.platform}:${normalizeGameName(game.game_name)}`;
+    gameMap.set(key, game);
+  }
 
   let queriedCount = 0;
   let totalVideos = 0;
@@ -206,7 +240,7 @@ async function main() {
           videoId,
         };
 
-        const result = await upsertGame(candidate);
+        const result = await upsertGame(candidate, gameMap);
         stats.inserted += result.inserted;
         stats.updated += result.updated;
       }
@@ -275,19 +309,30 @@ async function fetchYoutubeVideos(input: {
     type: "video",
     order: "date",
     maxResults: "10",
+    relevanceLanguage: "en",
     publishedAfter: input.publishedAfter,
     q: input.query,
     key: input.apiKey,
   });
 
   let response: Response;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
   try {
-    response = await fetch(`${YOUTUBE_SEARCH_URL}?${params.toString()}`);
+    response = await fetch(`${YOUTUBE_SEARCH_URL}?${params.toString()}`, {
+      signal: controller.signal,
+    });
   } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`request timeout while fetching YouTube for query "${input.query}"`);
+    }
+
     throw new Error(
       `network error while fetching YouTube for query "${input.query}": ${error instanceof Error ? error.message : String(error)}`,
     );
+  } finally {
+    clearTimeout(timeout);
   }
 
   const data = (await response.json()) as SearchResponse;
@@ -376,7 +421,7 @@ function extractCandidateGameName(title: string, platform: "ROBLOX" | "STEAM") {
   const candidate = preferred.join(" ").trim();
   const normalized = normalizeGameName(candidate);
 
-  if (!normalized || normalized.length < 2) {
+  if (!normalized || normalized.length < 2 || BAD_PHRASES.has(normalized)) {
     return null;
   }
 
@@ -446,37 +491,32 @@ function toTitleCase(value: string) {
     .join(" ");
 }
 
-async function upsertGame(candidate: Candidate) {
+async function upsertGame(candidate: Candidate, gameMap: Map<string, ExistingGame>) {
   try {
-    const existingGames = await prisma.game.findMany({
-      where: {
-        platform: candidate.platform,
-      },
-      select: {
-        id: true,
-        game_name: true,
-        youtube_24h_count: true,
-      },
-    });
-
-    const existing = existingGames.find((game) => {
-      return normalizeGameName(game.game_name) === candidate.normalizedName;
-    });
+    const key = `${candidate.platform}:${candidate.normalizedName}`;
+    const existing = gameMap.get(key);
 
     if (existing) {
+      const nextCount = existing.youtube_24h_count + 1;
+
       await prisma.game.update({
         where: {
           id: existing.id,
         },
         data: {
-          youtube_24h_count: existing.youtube_24h_count + 1,
+          youtube_24h_count: nextCount,
         },
+      });
+
+      gameMap.set(key, {
+        ...existing,
+        youtube_24h_count: nextCount,
       });
 
       return { inserted: 0, updated: 1 };
     }
 
-    await prisma.game.create({
+    const created = await prisma.game.create({
       data: {
         game_name: candidate.gameName,
         platform: candidate.platform,
@@ -490,6 +530,13 @@ async function upsertGame(candidate: Candidate) {
         action: "review",
         notes: "seeded from youtube",
       },
+    });
+
+    gameMap.set(key, {
+      id: created.id,
+      game_name: created.game_name,
+      platform: created.platform,
+      youtube_24h_count: created.youtube_24h_count,
     });
 
     return { inserted: 1, updated: 0 };
