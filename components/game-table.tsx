@@ -5,6 +5,42 @@ type GameTableProps = {
   games: GameRow[];
 };
 
+function getSuggestedToolLabel(value: string) {
+  if (value === "calculator") {
+    return "计算器";
+  }
+
+  if (value === "tier list") {
+    return "强度榜";
+  }
+
+  if (value === "codes") {
+    return "兑换码";
+  }
+
+  if (value === "build") {
+    return "配装";
+  }
+
+  return value;
+}
+
+function getActionLabel(value: string) {
+  if (value === "build now") {
+    return "立即做站";
+  }
+
+  if (value === "review") {
+    return "观察";
+  }
+
+  if (value === "monitor") {
+    return "监控";
+  }
+
+  return value;
+}
+
 export function GameTable({ games }: GameTableProps) {
   if (games.length === 0) {
     return <p className="empty">暂无数据，请先执行 seed。</p>;
@@ -15,14 +51,14 @@ export function GameTable({ games }: GameTableProps) {
       <table>
         <thead>
           <tr>
-            <th>Game</th>
-            <th>Platform</th>
-            <th>YouTube 24h</th>
-            <th>Fit</th>
-            <th>SERP Gap</th>
-            <th>Total</th>
-            <th>Suggested Tool</th>
-            <th>Action</th>
+            <th>游戏</th>
+            <th>平台</th>
+            <th>24小时视频</th>
+            <th>工具适配</th>
+            <th>SEO空缺</th>
+            <th>综合评分</th>
+            <th>推荐工具</th>
+            <th>建议行动</th>
           </tr>
         </thead>
         <tbody>
@@ -36,8 +72,8 @@ export function GameTable({ games }: GameTableProps) {
               <td>{game.fit_score}</td>
               <td>{game.serp_gap_score}</td>
               <td>{game.total_score}</td>
-              <td>{game.suggested_tool}</td>
-              <td>{game.action}</td>
+              <td>{getSuggestedToolLabel(game.suggested_tool)}</td>
+              <td>{getActionLabel(game.action)}</td>
             </tr>
           ))}
         </tbody>

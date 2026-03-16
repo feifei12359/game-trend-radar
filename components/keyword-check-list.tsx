@@ -15,14 +15,10 @@ export function KeywordCheckList({ checks }: KeywordCheckListProps) {
         <article className="keyword-item" key={check.id}>
           <h3>{check.keyword}</h3>
           <p className="muted">
-            <span className="badge">
-              {check.has_tool_site ? "已有工具站" : "暂未发现工具站"}
-            </span>
+            <span className="badge">{check.has_tool_site ? "已有工具站" : "暂未发现工具站"}</span>
           </p>
           <p>{check.serp_summary}</p>
-          <p className="muted">
-            Checked at {new Date(check.checked_at).toLocaleString("zh-CN")}
-          </p>
+          <p className="muted">检查时间：{new Date(check.checked_at).toLocaleString("zh-CN")}</p>
         </article>
       ))}
     </div>

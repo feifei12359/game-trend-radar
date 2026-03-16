@@ -3,8 +3,8 @@ import Link from "next/link";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Game Opportunity Radar",
-  description: "Minimal internal radar for Roblox and Steam game opportunities.",
+  title: "游戏机会雷达",
+  description: "Roblox / Steam 游戏机会雷达最小工具。",
 };
 
 export default function RootLayout({
@@ -18,10 +18,10 @@ export default function RootLayout({
         <div className="shell">
           <header className="topbar">
             <Link href="/" className="brand">
-              Game Opportunity Radar
+              游戏机会雷达
             </Link>
             <nav className="nav">
-              <Link href="/radar">Radar</Link>
+              <Link href="/radar">雷达</Link>
             </nav>
           </header>
           {children}

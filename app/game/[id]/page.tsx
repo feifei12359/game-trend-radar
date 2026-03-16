@@ -8,6 +8,42 @@ type GameDetailPageProps = {
   }>;
 };
 
+function getSuggestedToolLabel(value: string) {
+  if (value === "calculator") {
+    return "计算器";
+  }
+
+  if (value === "tier list") {
+    return "强度榜";
+  }
+
+  if (value === "codes") {
+    return "兑换码";
+  }
+
+  if (value === "build") {
+    return "配装";
+  }
+
+  return value;
+}
+
+function getActionLabel(value: string) {
+  if (value === "build now") {
+    return "立即做站";
+  }
+
+  if (value === "review") {
+    return "观察";
+  }
+
+  if (value === "monitor") {
+    return "监控";
+  }
+
+  return value;
+}
+
 export default async function GameDetailPage({ params }: GameDetailPageProps) {
   const { id } = await params;
   const gameId = Number(id);
@@ -35,19 +71,19 @@ export default async function GameDetailPage({ params }: GameDetailPageProps) {
         <h2 className="section-title">基本信息</h2>
         <div className="detail-list">
           <div>
-            <span className="label">Discovered At</span>
+            <span className="label">发现时间</span>
             <span>{new Date(game.discovered_at).toLocaleString("zh-CN")}</span>
           </div>
           <div>
-            <span className="label">Suggested Tool</span>
-            <span>{game.suggested_tool}</span>
+            <span className="label">推荐工具</span>
+            <span>{getSuggestedToolLabel(game.suggested_tool)}</span>
           </div>
           <div>
-            <span className="label">Action</span>
-            <span>{game.action}</span>
+            <span className="label">建议行动</span>
+            <span>{getActionLabel(game.action)}</span>
           </div>
           <div>
-            <span className="label">Notes</span>
+            <span className="label">备注</span>
             <span>{game.notes || "暂无备注"}</span>
           </div>
         </div>
@@ -55,23 +91,23 @@ export default async function GameDetailPage({ params }: GameDetailPageProps) {
 
       <section className="score-grid">
         <div className="score-card">
-          <strong>YouTube 24h</strong>
+          <strong>24小时视频</strong>
           <span>{game.youtube_24h_count}</span>
         </div>
         <div className="score-card">
-          <strong>YouTube Growth</strong>
+          <strong>YouTube 增长</strong>
           <span>{game.youtube_growth_score}</span>
         </div>
         <div className="score-card">
-          <strong>Fit Score</strong>
+          <strong>工具适配</strong>
           <span>{game.fit_score}</span>
         </div>
         <div className="score-card">
-          <strong>SERP Gap</strong>
+          <strong>SEO空缺</strong>
           <span>{game.serp_gap_score}</span>
         </div>
         <div className="score-card">
-          <strong>Total Score</strong>
+          <strong>综合评分</strong>
           <span>{game.total_score}</span>
         </div>
       </section>

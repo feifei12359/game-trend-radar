@@ -9,8 +9,8 @@ export default async function RadarPage() {
   return (
     <main className="grid">
       <section>
-        <p className="muted">Top 20 by total score</p>
-        <h1 className="page-title">Radar</h1>
+        <p className="muted">按综合评分排序的 Top20 游戏机会</p>
+        <h1 className="page-title">游戏机会雷达</h1>
       </section>
       <GameTable games={games} />
     </main>
