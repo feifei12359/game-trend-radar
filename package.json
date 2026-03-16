@@ -8,6 +8,7 @@
     "start": "next start",
     "postinstall": "prisma generate",
     "fetch:youtube": "tsx scripts/fetch-youtube.ts",
+    "radar:daily": "tsx scripts/radar-daily.ts",
     "score:games": "tsx scripts/score-games.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
