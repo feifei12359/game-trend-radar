@@ -158,7 +158,7 @@ type Candidate = {
 type ExistingGame = {
   id: number;
   game_name: string;
-  platform: "ROBLOX" | "STEAM";
+  platform: string;
   youtube_24h_count: number;
 };
 
