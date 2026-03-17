@@ -4,6 +4,7 @@ type BaseGame = {
   platform: string;
   discovered_at: Date;
   youtube_24h_count: number;
+  youtube_24h_prev: number;
   fit_score: number;
   serp_gap_score: number;
   total_score: number;
@@ -16,6 +17,7 @@ export type OpportunityStage = "early_rising" | "watchlist" | "ignore";
 export type OpportunityGame = BaseGame & {
   youtube_6h_count: number;
   youtube_growth_ratio: number;
+  youtube_growth_count: number;
   opportunity_stage: OpportunityStage;
   stars: number;
 };
@@ -92,11 +94,13 @@ export function classifyOpportunityStage(game: OpportunityGame): OpportunityStag
 export function enrichOpportunityGame(game: BaseGame): OpportunityGame {
   const youtube_6h_count = estimateYoutube6hCount(game);
   const youtube_growth_ratio = youtube_6h_count / Math.max(game.youtube_24h_count, 1);
+  const youtube_growth_count = game.youtube_24h_count - game.youtube_24h_prev;
 
   const enriched: OpportunityGame = {
     ...game,
     youtube_6h_count,
     youtube_growth_ratio,
+    youtube_growth_count,
     opportunity_stage: "ignore",
     stars: 0,
   };
@@ -156,10 +160,12 @@ export function isLikelyNoise(game: {
 export function classify(game: {
   game_name: string;
   youtube_24h_count: number;
+  youtube_24h_prev?: number;
 }): OpportunityStage {
   const y = game.youtube_24h_count;
   const name = game.game_name.toLowerCase();
   const hasSignal = /demo|playtest|event|codes|update/i.test(name);
+  const growth = y - (game.youtube_24h_prev ?? 0);
 
   if (isLikelyNoise(game)) {
     return "ignore";
@@ -169,7 +175,7 @@ export function classify(game: {
     return "early_rising";
   }
 
-  if (y > 3 && y <= 15) {
+  if (y >= 3 && growth >= 3) {
     return "watchlist";
   }
 

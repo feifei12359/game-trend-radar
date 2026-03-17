@@ -13,6 +13,7 @@ model Game {
   platform             String
   discovered_at        DateTime       @default(now())
   youtube_24h_count    Int
+  youtube_24h_prev     Int            @default(0)
   youtube_growth_score Float
   fit_score            Float
   serp_gap_score       Float

@@ -164,6 +164,8 @@ type ExistingGame = {
   game_name: string;
   platform: string;
   youtube_24h_count: number;
+  youtube_24h_prev: number;
+  baseline_24h_count: number;
 };
 
 type QueryStats = {
@@ -199,13 +201,17 @@ async function main() {
         game_name: true,
         platform: true,
         youtube_24h_count: true,
+        youtube_24h_prev: true,
       },
     });
     const gameMap = new Map<string, ExistingGame>();
 
     for (const game of existingGames) {
       const key = `${game.platform}:${normalizeGameName(game.game_name)}`;
-      gameMap.set(key, game);
+      gameMap.set(key, {
+        ...game,
+        baseline_24h_count: game.youtube_24h_count,
+      });
     }
 
     console.log(`loaded existing games: ${gameMap.size}`);
@@ -754,6 +760,7 @@ async function upsertGame(
           id: existing.id,
         },
         data: {
+          youtube_24h_prev: existing.baseline_24h_count,
           youtube_24h_count: nextCount,
         },
       });
@@ -772,6 +779,7 @@ async function upsertGame(
         platform: candidate.platform,
         discovered_at: new Date(),
         youtube_24h_count: 1,
+        youtube_24h_prev: 0,
         youtube_growth_score: 0,
         fit_score: 0,
         serp_gap_score: 0,
@@ -784,10 +792,12 @@ async function upsertGame(
 
     gameMap.set(key, {
       id: created.id,
-      game_name: created.game_name,
-      platform: created.platform,
-      youtube_24h_count: created.youtube_24h_count,
-    });
+        game_name: created.game_name,
+        platform: created.platform,
+        youtube_24h_count: created.youtube_24h_count,
+        youtube_24h_prev: created.youtube_24h_prev,
+        baseline_24h_count: 0,
+      });
 
     return { inserted: 1, updated: 0 };
   } catch (error) {
