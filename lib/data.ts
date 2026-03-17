@@ -3,6 +3,7 @@ import {
   enrichOpportunityGame,
   getEarlyRisingRankScore,
   isLikelyNoise,
+  isSaturated,
   isTrending,
   type OpportunityGame,
 } from "@/lib/opportunity";
@@ -42,6 +43,7 @@ export async function getRadarBuckets() {
       .filter((game) => !existingIds.has(game.id))
       .filter((game) => !isLikelyNoise(game))
       .filter((game) => !isTrending(game))
+      .filter((game) => !isSaturated(game))
       .sort(
         (left, right) => getEarlyRisingRankScore(right) - getEarlyRisingRankScore(left),
       )
@@ -66,9 +68,21 @@ export async function getRadarBuckets() {
     .sort((left, right) => right.total_score - left.total_score)
     .slice(0, 10);
 
+  const saturated = enriched
+    .filter((game) => game.opportunity_stage === "saturated")
+    .sort((left, right) => {
+      if (right.youtube_24h_count !== left.youtube_24h_count) {
+        return right.youtube_24h_count - left.youtube_24h_count;
+      }
+
+      return right.total_score - left.total_score;
+    })
+    .slice(0, 10);
+
   return {
     earlyRising,
     trendingNow,
+    saturated,
     noise,
   };
 }

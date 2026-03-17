@@ -11,7 +11,7 @@ type BaseGame = {
   action: string;
 };
 
-export type OpportunityStage = "early_rising" | "trending" | "noise";
+export type OpportunityStage = "early_rising" | "trending" | "saturated" | "noise";
 
 export type OpportunityGame = BaseGame & {
   youtube_6h_count: number;
@@ -155,7 +155,19 @@ export function isTrending(game: {
   youtube_24h_count: number;
   youtube_growth_ratio?: number | null;
 }) {
-  if (game.youtube_24h_count >= 10 && game.youtube_24h_count <= 100) {
+  if (game.youtube_24h_count > 10 && game.youtube_24h_count <= 80) {
+    return true;
+  }
+
+  return false;
+}
+
+export function isSaturated(game: {
+  game_name?: string;
+  youtube_24h_count: number;
+  youtube_growth_ratio?: number | null;
+}) {
+  if (game.youtube_24h_count > 80) {
     return true;
   }
 
@@ -201,6 +213,10 @@ export function getOpportunityStage(game: {
 
   if (isTrending(game)) {
     return "trending";
+  }
+
+  if (isSaturated(game)) {
+    return "saturated";
   }
 
   return "noise";
