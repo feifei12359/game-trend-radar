@@ -11,6 +11,7 @@
     "fetch:youtube": "tsx scripts/fetch-youtube.ts",
     "radar:daily": "tsx scripts/radar-daily.ts",
     "score:games": "tsx scripts/score-games.ts",
+    "cleanup:games": "tsx scripts/cleanup-games.ts",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:seed": "prisma db seed",
@@ -19,6 +20,7 @@
   },
   "dependencies": {
     "@prisma/client": "^6.6.0",
+    "https-proxy-agent": "^7.0.6",
     "next": "^16.1.6",
     "react": "19.0.0",
     "react-dom": "19.0.0"
