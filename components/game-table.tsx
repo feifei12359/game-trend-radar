@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { GameRow } from "@/lib/data";
+import { getTrendsUrl, getYouTubeSearchUrl } from "@/lib/links";
 
 type GameTableProps = {
   games: GameRow[];
@@ -65,7 +66,42 @@ export function GameTable({ games }: GameTableProps) {
           {games.map((game) => (
             <tr key={game.id}>
               <td>
-                <Link href={`/game/${game.id}`}>{game.game_name}</Link>
+                <div>
+                  <Link href={`/game/${game.id}`}>{game.game_name}</Link>
+                  <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
+                    <a
+                      href={getYouTubeSearchUrl(game.game_name)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        fontSize: 12,
+                        padding: "2px 6px",
+                        background: "#ff0000",
+                        color: "#fff",
+                        borderRadius: 4,
+                        textDecoration: "none",
+                      }}
+                    >
+                      YouTube
+                    </a>
+
+                    <a
+                      href={getTrendsUrl(game.game_name)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        fontSize: 12,
+                        padding: "2px 6px",
+                        background: "#4285F4",
+                        color: "#fff",
+                        borderRadius: 4,
+                        textDecoration: "none",
+                      }}
+                    >
+                      Trends
+                    </a>
+                  </div>
+                </div>
               </td>
               <td>{game.platform}</td>
               <td>{game.youtube_24h_count}</td>
