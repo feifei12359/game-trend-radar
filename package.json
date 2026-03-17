@@ -7,6 +7,7 @@
     "build": "next build",
     "start": "next start",
     "postinstall": "prisma generate",
+    "check:keywords": "tsx scripts/check-keywords.ts",
     "fetch:youtube": "tsx scripts/fetch-youtube.ts",
     "radar:daily": "tsx scripts/radar-daily.ts",
     "score:games": "tsx scripts/score-games.ts",
