@@ -104,6 +104,24 @@ const BAD_SINGLE_WORDS = new Set([
   "team",
 ]);
 
+const ACTION_WORDS = new Set([
+  "buying",
+  "playing",
+  "steal",
+  "using",
+  "testing",
+  "trying",
+  "watching",
+  "building",
+  "making",
+  "waiting",
+]);
+
+const BAD_MAP_WORDS = new Set([
+  "obby",
+  "parkour",
+]);
+
 type SearchItem = {
   id?: {
     videoId?: string;
@@ -510,6 +528,16 @@ function extractCandidateGameName(title: string, platform: "ROBLOX" | "STEAM") {
   const preferred = pickPreferredWords(words, rawWords);
 
   if (preferred.length === 0 || preferred.length > 4) {
+    return null;
+  }
+
+  const normalizedPreferredWords = preferred.map((word) => normalizeGameName(word));
+
+  if (ACTION_WORDS.has(normalizedPreferredWords[0] ?? "")) {
+    return null;
+  }
+
+  if (normalizedPreferredWords.some((word) => BAD_MAP_WORDS.has(word))) {
     return null;
   }
 
