@@ -5,6 +5,7 @@ const prisma = new PrismaClient();
 const MAX_GAMES = 10;
 const MAX_CONSECUTIVE_ERRORS = 3;
 const SEARCH_URL = "https://duckduckgo.com/";
+const SEARCH_TIMEOUT_MS = 12_000;
 const KNOWN_SITES = [
   "fandom",
   "ign",
@@ -105,13 +106,29 @@ async function searchKeyword(keyword: string) {
     kp: "-1",
   });
 
-  const response = await fetch(`${SEARCH_URL}?${params.toString()}`, {
-    headers: {
-      "user-agent":
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-      accept: "text/html,application/xhtml+xml",
-    },
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), SEARCH_TIMEOUT_MS);
+
+  let response: Response;
+
+  try {
+    response = await fetch(`${SEARCH_URL}?${params.toString()}`, {
+      headers: {
+        "user-agent":
+          "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        accept: "text/html,application/xhtml+xml",
+      },
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") {
+      throw new Error(`search request timeout after ${SEARCH_TIMEOUT_MS}ms`);
+    }
+
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
 
   if (!response.ok) {
     throw new Error(`search request failed with status ${response.status}`);
@@ -127,9 +144,8 @@ function analyzeSearchResult(html: string) {
   const resultBlocks = countMatches(lowerHtml, /result__title|result__snippet|result-link/g);
 
   const hasToolSite =
-    domainHits.length >= 1 ||
-    toolTermHits.length >= 3 ||
-    (toolTermHits.length >= 2 && resultBlocks >= 3);
+    (domainHits.length >= 1 && toolTermHits.length >= 1) ||
+    (toolTermHits.length >= 3 && resultBlocks >= 3);
 
   return {
     hasToolSite,
