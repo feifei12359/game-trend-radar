@@ -531,28 +531,28 @@ function extractCandidateGameName(title: string, platform: "ROBLOX" | "STEAM") {
     return null;
   }
 
-  const normalizedPreferredWords = preferred.map((word) => normalizeGameName(word));
-
-  if (ACTION_WORDS.has(normalizedPreferredWords[0] ?? "")) {
-    return null;
-  }
-
-  if (normalizedPreferredWords.some((word) => BAD_MAP_WORDS.has(word))) {
-    return null;
-  }
-
   const candidate = preferred.join(" ").trim();
   const normalized = normalizeGameName(candidate);
+  const candidateWords = candidate.split(/\s+/).filter(Boolean);
+  const normalizedCandidateWords = candidateWords.map((word) => normalizeGameName(word));
 
   if (!normalized || normalized.length < 2 || BAD_PHRASES.has(normalized)) {
     return null;
   }
 
-  if (preferred.length === 1 && BAD_SINGLE_WORDS.has(normalized)) {
+  if (candidateWords.length === 1 && BAD_SINGLE_WORDS.has(normalized)) {
     return null;
   }
 
-  if (!isLikelyGameName(candidate, preferred)) {
+  if (ACTION_WORDS.has(normalizedCandidateWords[0] ?? "")) {
+    return null;
+  }
+
+  if (normalizedCandidateWords.some((word) => BAD_MAP_WORDS.has(word))) {
+    return null;
+  }
+
+  if (!isLikelyGameName(candidate, candidateWords)) {
     return null;
   }
 
