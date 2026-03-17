@@ -552,7 +552,65 @@ function extractCandidateGameName(title: string, platform: "ROBLOX" | "STEAM") {
     return null;
   }
 
+  if (!isLikelyGameName(candidate, preferred)) {
+    return null;
+  }
+
   return toTitleCase(candidate);
+}
+
+function isLikelyGameName(candidate: string, words: string[]) {
+  const lower = candidate.toLowerCase();
+
+  // 1. 不能以动词开头
+  const ACTION_WORDS = [
+    "buying",
+    "playing",
+    "steal",
+    "using",
+    "testing",
+    "trying",
+    "watching",
+    "building",
+    "making",
+    "waiting",
+  ];
+
+  if (ACTION_WORDS.includes(words[0]?.toLowerCase())) {
+    return false;
+  }
+
+  // 2. 不能包含明显内容词
+  const CONTENT_WORDS = [
+    "brainrot",
+    "mmv",
+    "edit",
+    "robloxedit",
+    "animation",
+  ];
+
+  if (words.some((w) => CONTENT_WORDS.includes(w.toLowerCase()))) {
+    return false;
+  }
+
+  // 3. Roblox 地图词过滤
+  const MAP_WORDS = ["obby", "tycoon", "escape"];
+
+  if (words.some((w) => MAP_WORDS.includes(w.toLowerCase()))) {
+    return false;
+  }
+
+  // 4. 全大写句子（通常不是游戏名）
+  if (candidate === candidate.toUpperCase()) {
+    return false;
+  }
+
+  // 5. 词数限制（防止标题拼接）
+  if (words.length > 4) {
+    return false;
+  }
+
+  return lower.length > 0;
 }
 
 function chooseBetterSegment(parts: string[], platform: "ROBLOX" | "STEAM") {
