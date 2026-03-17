@@ -1,5 +1,11 @@
 import { prisma } from "@/lib/prisma";
-import { enrichOpportunityGame, type OpportunityGame } from "@/lib/opportunity";
+import {
+  enrichOpportunityGame,
+  getEarlyRisingRankScore,
+  isLikelyNoise,
+  isOldHot,
+  type OpportunityGame,
+} from "@/lib/opportunity";
 
 export type GameRow = Awaited<ReturnType<typeof getTopGames>>[number];
 export type KeywordCheckRow = Awaited<ReturnType<typeof getKeywordChecksByGameId>>[number];
@@ -25,14 +31,24 @@ export async function getRadarBuckets() {
 
   const earlyRising = enriched
     .filter((game) => game.opportunity_stage === "early_rising")
-    .sort((left, right) => {
-      if (right.youtube_growth_ratio !== left.youtube_growth_ratio) {
-        return right.youtube_growth_ratio - left.youtube_growth_ratio;
-      }
-
-      return right.total_score - left.total_score;
-    })
+    .sort(
+      (left, right) => getEarlyRisingRankScore(right) - getEarlyRisingRankScore(left),
+    )
     .slice(0, 10);
+
+  if (earlyRising.length < 3) {
+    const existingIds = new Set(earlyRising.map((game) => game.id));
+    const fallbackCandidates = enriched
+      .filter((game) => !existingIds.has(game.id))
+      .filter((game) => !isLikelyNoise(game))
+      .filter((game) => !isOldHot(game))
+      .sort(
+        (left, right) => getEarlyRisingRankScore(right) - getEarlyRisingRankScore(left),
+      )
+      .slice(0, Math.max(0, 5 - earlyRising.length));
+
+    earlyRising.push(...fallbackCandidates);
+  }
 
   const oldHot = enriched
     .filter((game) => game.opportunity_stage === "old_hot")

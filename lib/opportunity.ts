@@ -81,21 +81,7 @@ export function pickTodayOpportunity(games: BaseGame[]) {
 }
 
 export function classifyOpportunityStage(game: OpportunityGame): OpportunityStage {
-  if (game.youtube_24h_count >= 80 || game.youtube_growth_ratio < 0.25) {
-    return "old_hot";
-  }
-
-  if (
-    game.youtube_24h_count >= 5 &&
-    game.youtube_24h_count <= 50 &&
-    game.youtube_growth_ratio >= 0.35 &&
-    game.fit_score >= 30 &&
-    game.serp_gap_score >= 40
-  ) {
-    return "early_rising";
-  }
-
-  return "noise";
+  return getOpportunityStage(game);
 }
 
 export function enrichOpportunityGame(game: BaseGame): OpportunityGame {
@@ -109,8 +95,131 @@ export function enrichOpportunityGame(game: BaseGame): OpportunityGame {
     opportunity_stage: "noise",
   };
 
-  enriched.opportunity_stage = classifyOpportunityStage(enriched);
+  enriched.opportunity_stage = getOpportunityStage(enriched);
   return enriched;
+}
+
+export function isLikelyNoise(game: {
+  game_name: string;
+  youtube_24h_count: number;
+}) {
+  const name = game.game_name.trim().toLowerCase();
+
+  if (game.youtube_24h_count <= 1) {
+    return true;
+  }
+
+  const badSingleWords = new Set([
+    "hello",
+    "bear",
+    "agt",
+    "game",
+    "games",
+    "video",
+    "free",
+    "new",
+    "update",
+    "play",
+    "playing",
+    "working",
+    "viewer",
+    "viewers",
+  ]);
+
+  if (!name.includes(" ") && badSingleWords.has(name)) {
+    return true;
+  }
+
+  if (/^\d+$/.test(name)) {
+    return true;
+  }
+
+  const weakPhrases = [
+    "my free game works",
+    "weird games",
+    "game you",
+    "i obtained",
+    "smile more free indie",
+    "cars come brazil",
+  ];
+
+  if (weakPhrases.includes(name)) {
+    return true;
+  }
+
+  return false;
+}
+
+export function isOldHot(game: {
+  youtube_24h_count: number;
+  youtube_growth_ratio?: number | null;
+}) {
+  const growth = game.youtube_growth_ratio ?? 0;
+
+  if (game.youtube_24h_count >= 80) {
+    return true;
+  }
+
+  if (game.youtube_24h_count >= 40 && growth < 0.2) {
+    return true;
+  }
+
+  return false;
+}
+
+export function isEarlyRising(game: {
+  game_name: string;
+  youtube_24h_count: number;
+  youtube_growth_ratio?: number | null;
+}) {
+  const growth = game.youtube_growth_ratio ?? 0;
+
+  if (isLikelyNoise(game)) {
+    return false;
+  }
+
+  if (isOldHot(game)) {
+    return false;
+  }
+
+  if (
+    game.youtube_24h_count >= 3 &&
+    game.youtube_24h_count <= 50 &&
+    growth >= 0.25
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+export function getOpportunityStage(game: {
+  game_name: string;
+  youtube_24h_count: number;
+  youtube_growth_ratio?: number | null;
+}): OpportunityStage {
+  if (isLikelyNoise(game)) {
+    return "noise";
+  }
+
+  if (isOldHot(game)) {
+    return "old_hot";
+  }
+
+  if (isEarlyRising(game)) {
+    return "early_rising";
+  }
+
+  return "noise";
+}
+
+export function getEarlyRisingRankScore(game: {
+  youtube_24h_count: number;
+  youtube_growth_ratio?: number | null;
+  total_score: number;
+}) {
+  const growth = game.youtube_growth_ratio ?? 0;
+  return growth * 100 + game.youtube_24h_count * 1.5 + game.total_score * 0.2;
 }
 
 function estimateYoutube6hCount(game: BaseGame) {
@@ -124,4 +233,3 @@ function estimateYoutube6hCount(game: BaseGame) {
   const ratio = Math.min(1, 6 / elapsedHours);
   return Math.min(game.youtube_24h_count, Math.max(1, Math.round(game.youtube_24h_count * ratio)));
 }
-
