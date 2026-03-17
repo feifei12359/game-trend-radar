@@ -1,6 +1,8 @@
+import { PrismaClient } from "@prisma/client";
+import { readFileSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
+import https from "node:https";
 import path from "node:path";
-import { prisma } from "../lib/prisma";
 import { normalizeGameName } from "../lib/normalize";
 
 const QUERIES = [
@@ -18,6 +20,7 @@ const YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search";
 const CACHE_PATH = path.join(process.cwd(), "data", "youtube-cache.json");
 const MAX_RECENT_VIDEO_IDS = 300;
 const FETCH_TIMEOUT_MS = 12_000;
+
 const STOP_WORDS = new Set([
   "new",
   "update",
@@ -57,6 +60,7 @@ const STOP_WORDS = new Set([
   "pc",
   "mobile",
 ]);
+
 const BAD_PHRASES = new Set([
   "tower defense",
   "new game",
@@ -68,6 +72,36 @@ const BAD_PHRASES = new Set([
   "trailer",
   "guide",
   "tips",
+]);
+
+const BAD_SINGLE_WORDS = new Set([
+  "hello",
+  "everything",
+  "update",
+  "updates",
+  "gameplay",
+  "trailer",
+  "guide",
+  "tips",
+  "video",
+  "videos",
+  "game",
+  "games",
+  "play",
+  "playing",
+  "working",
+  "animation",
+  "edit",
+  "robloxedit",
+  "defense",
+  "simulator",
+  "anime",
+  "steam",
+  "roblox",
+  "unit",
+  "upgrade",
+  "build",
+  "team",
 ]);
 
 type SearchItem = {
@@ -106,7 +140,7 @@ type Candidate = {
 type ExistingGame = {
   id: number;
   game_name: string;
-  platform: string;
+  platform: "ROBLOX" | "STEAM";
   youtube_24h_count: number;
 };
 
@@ -121,42 +155,46 @@ async function main() {
   console.log("start fetch-youtube");
 
   loadEnvFile();
-
-  const apiKey = process.env.YOUTUBE_API_KEY?.trim();
-
-  if (!apiKey) {
-    console.error("missing YOUTUBE_API_KEY in .env");
-    process.exitCode = 1;
-    return;
-  }
-
-  const cache = await readCache();
-  const todayUtc = new Date().toISOString().slice(0, 10);
-  const publishedAfter = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
-  const seenVideoIds = new Set(cache.processedVideoIds);
-  const seenCandidates = new Set<string>();
-  const existingGames = await prisma.game.findMany({
-    select: {
-      id: true,
-      game_name: true,
-      platform: true,
-      youtube_24h_count: true,
-    },
-  });
-  const gameMap = new Map<string, ExistingGame>();
-
-  for (const game of existingGames) {
-    const key = `${game.platform}:${normalizeGameName(game.game_name)}`;
-    gameMap.set(key, game);
-  }
-
-  let queriedCount = 0;
-  let totalVideos = 0;
-  let totalCandidates = 0;
-  let totalInserted = 0;
-  let totalUpdated = 0;
+  const prisma = new PrismaClient();
 
   try {
+    const apiKey = process.env.YOUTUBE_API_KEY?.trim();
+
+    if (!apiKey) {
+      console.error("missing YOUTUBE_API_KEY in .env");
+      process.exitCode = 1;
+      return;
+    }
+
+    const cache = await readCache();
+    const todayUtc = new Date().toISOString().slice(0, 10);
+    const publishedAfter = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const seenVideoIds = new Set(cache.processedVideoIds);
+    const seenCandidates = new Set<string>();
+    const existingGames = await prisma.game.findMany({
+      select: {
+        id: true,
+        game_name: true,
+        platform: true,
+        youtube_24h_count: true,
+      },
+    });
+    const gameMap = new Map<string, ExistingGame>();
+
+    for (const game of existingGames) {
+      const key = `${game.platform}:${normalizeGameName(game.game_name)}`;
+      gameMap.set(key, game);
+    }
+
+    console.log(`loaded existing games: ${gameMap.size}`);
+    console.log(`loaded cached video ids: ${seenVideoIds.size}`);
+
+    let queriedCount = 0;
+    let totalVideos = 0;
+    let totalCandidates = 0;
+    let totalInserted = 0;
+    let totalUpdated = 0;
+
     for (const query of QUERIES) {
       if (cache.queries[query] === todayUtc) {
         console.log(`query: ${query}`);
@@ -240,7 +278,7 @@ async function main() {
           videoId,
         };
 
-        const result = await upsertGame(candidate, gameMap);
+        const result = await upsertGame(prisma, candidate, gameMap);
         stats.inserted += result.inserted;
         stats.updated += result.updated;
       }
@@ -253,22 +291,23 @@ async function main() {
       console.log(`extracted candidates: ${stats.candidates}`);
       console.log(`inserted: ${stats.inserted}, updated: ${stats.updated}`);
     }
-  } finally {
+
     cache.processedVideoIds = Array.from(seenVideoIds).slice(-MAX_RECENT_VIDEO_IDS);
     await writeCache(cache);
+
+    console.log(
+      `done fetch-youtube | queries: ${queriedCount}, videos: ${totalVideos}, candidates: ${totalCandidates}, inserted: ${totalInserted}, updated: ${totalUpdated}`,
+    );
+  } finally {
     await prisma.$disconnect();
   }
-
-  console.log(
-    `done fetch-youtube | queries: ${queriedCount}, videos: ${totalVideos}, candidates: ${totalCandidates}, inserted: ${totalInserted}, updated: ${totalUpdated}`,
-  );
 }
 
 function loadEnvFile() {
   const envPath = path.join(process.cwd(), ".env");
 
   try {
-    const content = require("node:fs").readFileSync(envPath, "utf8") as string;
+    const content = readFileSync(envPath, "utf8");
     const lines = content.split(/\r?\n/);
 
     for (const line of lines) {
@@ -299,6 +338,11 @@ function loadEnvFile() {
   }
 }
 
+function createHttpsAgent() {
+  console.log("vpn mode, direct connect");
+  return new https.Agent({ family: 4 });
+}
+
 async function fetchYoutubeVideos(input: {
   apiKey: string;
   query: string;
@@ -315,37 +359,89 @@ async function fetchYoutubeVideos(input: {
     key: input.apiKey,
   });
 
-  let response: Response;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+  const url = `${YOUTUBE_SEARCH_URL}?${params.toString()}`;
+
+  let statusCode = 0;
+  let body = "";
 
   try {
-    response = await fetch(`${YOUTUBE_SEARCH_URL}?${params.toString()}`, {
-      signal: controller.signal,
-    });
+    const result = await requestJsonOverHttps(url, input.query);
+    statusCode = result.statusCode;
+    body = result.body;
   } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") {
-      throw new Error(`request timeout while fetching YouTube for query "${input.query}"`);
+    if (
+      error instanceof Error &&
+      error.message.startsWith(`request timeout while fetching YouTube for query "${input.query}"`)
+    ) {
+      throw error;
     }
 
     throw new Error(
       `network error while fetching YouTube for query "${input.query}": ${error instanceof Error ? error.message : String(error)}`,
     );
-  } finally {
-    clearTimeout(timeout);
   }
 
-  const data = (await response.json()) as SearchResponse;
+  let data: SearchResponse;
 
-  if (!response.ok) {
-    const message = data.error?.message || `HTTP ${response.status}`;
+  try {
+    data = JSON.parse(body) as SearchResponse;
+  } catch {
+    throw new Error(
+      `network error while fetching YouTube for query "${input.query}": invalid JSON response`,
+    );
+  }
+
+  if (statusCode < 200 || statusCode >= 300) {
+    const message = data.error?.message || `HTTP ${statusCode}`;
     const reason = data.error?.errors?.[0]?.reason || "";
     const error = new Error(`youtube api error for "${input.query}": ${message} (${reason})`);
-    error.name = response.status === 403 ? "QuotaError" : "YoutubeApiError";
+    error.name = statusCode === 403 ? "QuotaError" : "YoutubeApiError";
     throw error;
   }
 
   return data;
+}
+
+function requestJsonOverHttps(url: string, query: string) {
+  return new Promise<{ statusCode: number; body: string }>((resolve, reject) => {
+    const request = https.get(
+      url,
+      {
+        agent: createHttpsAgent(),
+        family: 4,
+      },
+      (res) => {
+        const statusCode = res.statusCode ?? 0;
+        const chunks: Buffer[] = [];
+
+        res.on("data", (chunk) => {
+          chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+        });
+
+        res.on("end", () => {
+          resolve({
+            statusCode,
+            body: Buffer.concat(chunks).toString("utf8"),
+          });
+        });
+      },
+    );
+
+    request.setTimeout(FETCH_TIMEOUT_MS, () => {
+      request.destroy(
+        new Error(`request timeout while fetching YouTube for query "${query}"`),
+      );
+    });
+
+    request.on("error", (error) => {
+      const code = (error as NodeJS.ErrnoException).code ?? "unknown";
+      reject(
+        new Error(
+          `https request failed: code=${code} name=${error.name} message=${error.message}`,
+        ),
+      );
+    });
+  });
 }
 
 function isQuotaError(error: unknown) {
@@ -382,7 +478,6 @@ function extractCandidateGameName(title: string, platform: "ROBLOX" | "STEAM") {
     return null;
   }
 
-  const lower = cleaned.toLowerCase();
   const splitPatterns = [
     /\bnew update for\b/i,
     /\bnew game on\b/i,
@@ -422,6 +517,10 @@ function extractCandidateGameName(title: string, platform: "ROBLOX" | "STEAM") {
   const normalized = normalizeGameName(candidate);
 
   if (!normalized || normalized.length < 2 || BAD_PHRASES.has(normalized)) {
+    return null;
+  }
+
+  if (preferred.length === 1 && BAD_SINGLE_WORDS.has(normalized)) {
     return null;
   }
 
@@ -491,7 +590,11 @@ function toTitleCase(value: string) {
     .join(" ");
 }
 
-async function upsertGame(candidate: Candidate, gameMap: Map<string, ExistingGame>) {
+async function upsertGame(
+  prisma: PrismaClient,
+  candidate: Candidate,
+  gameMap: Map<string, ExistingGame>,
+) {
   try {
     const key = `${candidate.platform}:${candidate.normalizedName}`;
     const existing = gameMap.get(key);
@@ -579,4 +682,7 @@ async function writeCache(cache: CacheFile) {
   await writeFile(CACHE_PATH, JSON.stringify(stableCache, null, 2) + "\n", "utf8");
 }
 
-void main();
+main().catch((error) => {
+  console.error(error);
+  process.exit(1);
+});
