@@ -1,10 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import {
+  classify,
   enrichOpportunityGame,
   getEarlyRisingRankScore,
-  isLikelyNoise,
-  isSaturated,
-  isTrending,
   type OpportunityGame,
 } from "@/lib/opportunity";
 
@@ -32,44 +30,14 @@ export async function getRadarBuckets() {
 
   const earlyRising = enriched
     .filter((game) => game.opportunity_stage === "early_rising")
+    .filter((game) => game.stars >= 4)
     .sort(
       (left, right) => getEarlyRisingRankScore(right) - getEarlyRisingRankScore(left),
     )
     .slice(0, 10);
 
-  if (earlyRising.length < 3) {
-    const existingIds = new Set(earlyRising.map((game) => game.id));
-    const fallbackCandidates = enriched
-      .filter((game) => !existingIds.has(game.id))
-      .filter((game) => !isLikelyNoise(game))
-      .filter((game) => !isTrending(game))
-      .filter((game) => !isSaturated(game))
-      .sort(
-        (left, right) => getEarlyRisingRankScore(right) - getEarlyRisingRankScore(left),
-      )
-      .slice(0, Math.max(0, 5 - earlyRising.length));
-
-    earlyRising.push(...fallbackCandidates);
-  }
-
-  const trendingNow = enriched
-    .filter((game) => game.opportunity_stage === "trending")
-    .sort((left, right) => {
-      if (right.youtube_24h_count !== left.youtube_24h_count) {
-        return right.youtube_24h_count - left.youtube_24h_count;
-      }
-
-      return right.total_score - left.total_score;
-    })
-    .slice(0, 10);
-
-  const noise = enriched
-    .filter((game) => game.opportunity_stage === "noise")
-    .sort((left, right) => right.total_score - left.total_score)
-    .slice(0, 10);
-
-  const saturated = enriched
-    .filter((game) => game.opportunity_stage === "saturated")
+  const watchlist = enriched
+    .filter((game) => classify(game) === "watchlist")
     .sort((left, right) => {
       if (right.youtube_24h_count !== left.youtube_24h_count) {
         return right.youtube_24h_count - left.youtube_24h_count;
@@ -81,9 +49,7 @@ export async function getRadarBuckets() {
 
   return {
     earlyRising,
-    trendingNow,
-    saturated,
-    noise,
+    watchlist,
   };
 }
 

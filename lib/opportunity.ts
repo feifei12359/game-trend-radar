@@ -11,16 +11,17 @@ type BaseGame = {
   action: string;
 };
 
-export type OpportunityStage = "early_rising" | "trending" | "saturated" | "noise";
+export type OpportunityStage = "early_rising" | "watchlist" | "ignore";
 
 export type OpportunityGame = BaseGame & {
   youtube_6h_count: number;
   youtube_growth_ratio: number;
   opportunity_stage: OpportunityStage;
+  stars: number;
 };
 
 function hasEarlySignal(gameName: string) {
-  return /code|update|event|demo|playtest/i.test(gameName);
+  return /demo|playtest|event|codes|update/i.test(gameName);
 }
 
 function isGarbageGame(name: string) {
@@ -85,7 +86,7 @@ export function pickTodayOpportunity(games: BaseGame[]) {
 }
 
 export function classifyOpportunityStage(game: OpportunityGame): OpportunityStage {
-  return getOpportunityStage(game);
+  return classify(game);
 }
 
 export function enrichOpportunityGame(game: BaseGame): OpportunityGame {
@@ -96,10 +97,12 @@ export function enrichOpportunityGame(game: BaseGame): OpportunityGame {
     ...game,
     youtube_6h_count,
     youtube_growth_ratio,
-    opportunity_stage: "noise",
+    opportunity_stage: "ignore",
+    stars: 0,
   };
 
-  enriched.opportunity_stage = getOpportunityStage(enriched);
+  enriched.stars = getStars(enriched);
+  enriched.opportunity_stage = classify(enriched);
   return enriched;
 }
 
@@ -150,76 +153,27 @@ export function isLikelyNoise(game: {
   return false;
 }
 
-export function isTrending(game: {
-  game_name?: string;
-  youtube_24h_count: number;
-  youtube_growth_ratio?: number | null;
-}) {
-  if (game.youtube_24h_count > 10 && game.youtube_24h_count <= 80) {
-    return true;
-  }
-
-  return false;
-}
-
-export function isSaturated(game: {
-  game_name?: string;
-  youtube_24h_count: number;
-  youtube_growth_ratio?: number | null;
-}) {
-  if (game.youtube_24h_count > 80) {
-    return true;
-  }
-
-  return false;
-}
-
-export function isEarlyRising(game: {
+export function classify(game: {
   game_name: string;
   youtube_24h_count: number;
-  youtube_growth_ratio?: number | null;
-}) {
-  const name = game.game_name.toLowerCase();
-  const hasEarlySignal =
-    /code|codes|update|event|demo|playtest/i.test(name);
-
-  if (isLikelyNoise(game)) {
-    return false;
-  }
-
-  if (
-    game.youtube_24h_count >= 1 &&
-    game.youtube_24h_count <= 10 &&
-    hasEarlySignal
-  ) {
-    return true;
-  }
-
-  return false;
-}
-
-export function getOpportunityStage(game: {
-  game_name: string;
-  youtube_24h_count: number;
-  youtube_growth_ratio?: number | null;
 }): OpportunityStage {
+  const y = game.youtube_24h_count;
+  const name = game.game_name.toLowerCase();
+  const hasSignal = /demo|playtest|event|codes|update/i.test(name);
+
   if (isLikelyNoise(game)) {
-    return "noise";
+    return "ignore";
   }
 
-  if (isEarlyRising(game)) {
+  if (y <= 5 && hasSignal) {
     return "early_rising";
   }
 
-  if (isTrending(game)) {
-    return "trending";
+  if (y > 5 && y <= 30) {
+    return "watchlist";
   }
 
-  if (isSaturated(game)) {
-    return "saturated";
-  }
-
-  return "noise";
+  return "ignore";
 }
 
 export function getEarlyRisingRankScore(game: {
@@ -227,6 +181,7 @@ export function getEarlyRisingRankScore(game: {
   youtube_24h_count: number;
   youtube_growth_ratio?: number | null;
   total_score: number;
+  stars?: number;
 }) {
   const growth = game.youtube_growth_ratio ?? 0;
   let score = growth * 100 + game.youtube_24h_count * 1.5 + game.total_score * 0.2;
@@ -239,7 +194,31 @@ export function getEarlyRisingRankScore(game: {
     score -= 15;
   }
 
+  if (typeof game.stars === "number") {
+    score += game.stars * 10;
+  }
+
   return score;
+}
+
+function getStars(game: { total_score: number }) {
+  if (game.total_score >= 70) {
+    return 5;
+  }
+
+  if (game.total_score >= 55) {
+    return 4;
+  }
+
+  if (game.total_score >= 40) {
+    return 3;
+  }
+
+  if (game.total_score >= 25) {
+    return 2;
+  }
+
+  return 1;
 }
 
 function estimateYoutube6hCount(game: BaseGame) {
