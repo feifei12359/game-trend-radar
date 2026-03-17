@@ -109,10 +109,6 @@ export function isLikelyNoise(game: {
 }) {
   const name = game.game_name.trim().toLowerCase();
 
-  if (game.youtube_24h_count <= 1) {
-    return true;
-  }
-
   const badSingleWords = new Set([
     "hello",
     "bear",
@@ -171,6 +167,10 @@ export function isEarlyRising(game: {
   youtube_24h_count: number;
   youtube_growth_ratio?: number | null;
 }) {
+  const name = game.game_name.toLowerCase();
+  const hasEarlySignal =
+    /code|codes|update|event|demo|playtest/i.test(name);
+
   if (isLikelyNoise(game)) {
     return false;
   }
@@ -180,9 +180,9 @@ export function isEarlyRising(game: {
   }
 
   if (
-    game.youtube_24h_count >= 2 &&
+    game.youtube_24h_count >= 1 &&
     game.youtube_24h_count <= 20 &&
-    hasEarlySignal(game.game_name)
+    hasEarlySignal
   ) {
     return true;
   }
@@ -220,11 +220,11 @@ export function getEarlyRisingRankScore(game: {
   let score = growth * 100 + game.youtube_24h_count * 1.5 + game.total_score * 0.2;
 
   if (game.game_name && hasEarlySignal(game.game_name)) {
-    score += 20;
+    score += 30;
   }
 
   if (game.game_name && !hasEarlySignal(game.game_name) && game.youtube_24h_count <= 2) {
-    score -= 10;
+    score -= 15;
   }
 
   return score;

@@ -44,11 +44,11 @@ async function main() {
         youtubeGrowthScore * 0.4 + fitScore * 0.4 + serpGapScore * 0.2;
 
       if (earlySignal) {
-        totalScore += 20;
+        totalScore += 30;
       }
 
       if (!earlySignal && game.youtube_24h_count <= 2) {
-        totalScore -= 10;
+        totalScore -= 15;
       }
 
       totalScore = roundScore(totalScore);
