@@ -35,13 +35,23 @@ async function main() {
     console.log(`scoring games: ${games.length}`);
 
     for (const game of games) {
+      const earlySignal = hasEarlySignal(game.game_name);
       const suggestedTool = getSuggestedTool(game.game_name);
       const youtubeGrowthScore = getYoutubeGrowthScore(game.youtube_24h_count);
       const fitScore = getFitScore(game.game_name);
       const serpGapScore = getSerpGapScore(suggestedTool);
-      const totalScore = roundScore(
-        youtubeGrowthScore * 0.4 + fitScore * 0.4 + serpGapScore * 0.2,
-      );
+      let totalScore =
+        youtubeGrowthScore * 0.4 + fitScore * 0.4 + serpGapScore * 0.2;
+
+      if (earlySignal) {
+        totalScore += 20;
+      }
+
+      if (!earlySignal && game.youtube_24h_count <= 2) {
+        totalScore -= 10;
+      }
+
+      totalScore = roundScore(totalScore);
       const action = getAction(totalScore);
 
       await prisma.game.update({
@@ -67,6 +77,10 @@ async function main() {
   }
 
   console.log("done score-games");
+}
+
+function hasEarlySignal(gameName: string) {
+  return /code|update|event|demo|playtest/i.test(gameName);
 }
 
 function getYoutubeGrowthScore(count: number) {
