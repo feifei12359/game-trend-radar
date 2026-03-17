@@ -11,7 +11,7 @@ type BaseGame = {
   action: string;
 };
 
-export type OpportunityStage = "early_rising" | "old_hot" | "noise";
+export type OpportunityStage = "early_rising" | "trending" | "noise";
 
 export type OpportunityGame = BaseGame & {
   youtube_6h_count: number;
@@ -150,12 +150,12 @@ export function isLikelyNoise(game: {
   return false;
 }
 
-export function isOldHot(game: {
+export function isTrending(game: {
   game_name?: string;
   youtube_24h_count: number;
   youtube_growth_ratio?: number | null;
 }) {
-  if (game.youtube_24h_count > 20) {
+  if (game.youtube_24h_count >= 10 && game.youtube_24h_count <= 100) {
     return true;
   }
 
@@ -175,13 +175,9 @@ export function isEarlyRising(game: {
     return false;
   }
 
-  if (isOldHot(game)) {
-    return false;
-  }
-
   if (
     game.youtube_24h_count >= 1 &&
-    game.youtube_24h_count <= 20 &&
+    game.youtube_24h_count <= 10 &&
     hasEarlySignal
   ) {
     return true;
@@ -199,12 +195,12 @@ export function getOpportunityStage(game: {
     return "noise";
   }
 
-  if (isOldHot(game)) {
-    return "old_hot";
-  }
-
   if (isEarlyRising(game)) {
     return "early_rising";
+  }
+
+  if (isTrending(game)) {
+    return "trending";
   }
 
   return "noise";

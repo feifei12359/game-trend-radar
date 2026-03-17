@@ -4,7 +4,7 @@ import { getRadarBuckets } from "@/lib/data";
 export const dynamic = "force-dynamic";
 
 export default async function RadarPage() {
-  const { earlyRising, oldHot, noise } = await getRadarBuckets();
+  const { earlyRising, trendingNow, noise } = await getRadarBuckets();
 
   return (
     <main className="grid">
@@ -23,10 +23,11 @@ export default async function RadarPage() {
 
       <section className="grid">
         <div>
-          <h2 className="section-title">Old Hot Terms</h2>
-          <p className="muted">Already-hot terms with weaker early-stage timing.</p>
+          <h2 className="section-title">Trending Now</h2>
+          <p className="muted">Games currently gaining traction and rising fast.</p>
+          <p className="muted">正在爆发中的游戏词，仍有机会进入。</p>
         </div>
-        <GameTable games={oldHot} />
+        <GameTable games={trendingNow} />
       </section>
 
       <section className="grid">
