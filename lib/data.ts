@@ -1,7 +1,9 @@
 import { prisma } from "@/lib/prisma";
+import { enrichOpportunityGame, type OpportunityGame } from "@/lib/opportunity";
 
 export type GameRow = Awaited<ReturnType<typeof getTopGames>>[number];
 export type KeywordCheckRow = Awaited<ReturnType<typeof getKeywordChecksByGameId>>[number];
+export type OpportunityRow = OpportunityGame;
 
 export async function getTopGames() {
   return prisma.game.findMany({
@@ -10,6 +12,49 @@ export async function getTopGames() {
     },
     take: 20,
   });
+}
+
+export async function getRadarBuckets() {
+  const games = await prisma.game.findMany({
+    orderBy: {
+      total_score: "desc",
+    },
+  });
+
+  const enriched = games.map(enrichOpportunityGame);
+
+  const earlyRising = enriched
+    .filter((game) => game.opportunity_stage === "early_rising")
+    .sort((left, right) => {
+      if (right.youtube_growth_ratio !== left.youtube_growth_ratio) {
+        return right.youtube_growth_ratio - left.youtube_growth_ratio;
+      }
+
+      return right.total_score - left.total_score;
+    })
+    .slice(0, 10);
+
+  const oldHot = enriched
+    .filter((game) => game.opportunity_stage === "old_hot")
+    .sort((left, right) => {
+      if (right.youtube_24h_count !== left.youtube_24h_count) {
+        return right.youtube_24h_count - left.youtube_24h_count;
+      }
+
+      return right.total_score - left.total_score;
+    })
+    .slice(0, 10);
+
+  const noise = enriched
+    .filter((game) => game.opportunity_stage === "noise")
+    .sort((left, right) => right.total_score - left.total_score)
+    .slice(0, 10);
+
+  return {
+    earlyRising,
+    oldHot,
+    noise,
+  };
 }
 
 export async function getGameById(id: number) {

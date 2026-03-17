@@ -1,9 +1,20 @@
 import Link from "next/link";
-import type { GameRow } from "@/lib/data";
 import { getTrendsUrl, getYouTubeSearchUrl } from "@/lib/links";
 
+type GameTableRow = {
+  id: number;
+  game_name: string;
+  platform: string;
+  youtube_24h_count: number;
+  fit_score: number;
+  serp_gap_score: number;
+  total_score: number;
+  suggested_tool: string;
+  action: string;
+};
+
 type GameTableProps = {
-  games: GameRow[];
+  games: GameTableRow[];
 };
 
 function getSuggestedToolLabel(value: string) {
