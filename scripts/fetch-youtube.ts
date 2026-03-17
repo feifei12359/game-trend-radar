@@ -556,6 +556,52 @@ function extractCandidateGameName(title: string, platform: "ROBLOX" | "STEAM") {
     return null;
   }
 
+  // ===== 第四层结构过滤 =====
+
+  // 1. 单词 or 太短
+  if (preferred.length <= 1) {
+    return null;
+  }
+
+  // 2. 包含纯数字
+  if (/^\d+$/.test(candidate)) {
+    return null;
+  }
+
+  // 3. 句子特征（含动词 + 空泛词）
+  const SENTENCE_WORDS = [
+    "free",
+    "game",
+    "games",
+    "works",
+    "more",
+    "any",
+    "weird",
+    "obtained",
+  ];
+
+  let hitCount = 0;
+  for (const w of preferred) {
+    if (SENTENCE_WORDS.includes(w.toLowerCase())) {
+      hitCount++;
+    }
+  }
+
+  // 命中多个句子词 → 认为不是游戏名
+  if (hitCount >= 2) {
+    return null;
+  }
+
+  // 4. 全小写 or 全大写（非正常命名）
+  if (candidate === candidate.toLowerCase() || candidate === candidate.toUpperCase()) {
+    return null;
+  }
+
+  // 5. 单词过短（防止 AGT / BEAR）
+  if (candidate.length <= 3) {
+    return null;
+  }
+
   return toTitleCase(candidate);
 }
 
