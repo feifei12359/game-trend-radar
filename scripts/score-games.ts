@@ -70,31 +70,33 @@ async function main() {
 }
 
 function getYoutubeGrowthScore(count: number) {
+  let score = 0;
+
   if (count <= 0) {
-    return 0;
+    score = 0;
+  } else if (count === 1) {
+    score = 20;
+  } else if (count === 2) {
+    score = 35;
+  } else if (count === 3) {
+    score = 50;
+  } else if (count <= 5) {
+    score = 65;
+  } else if (count <= 10) {
+    score = 80;
+  } else {
+    score = 95;
   }
 
-  if (count === 1) {
-    return 20;
+  if (count > 80) {
+    score -= 20;
   }
 
-  if (count === 2) {
-    return 35;
+  if (count >= 2 && count <= 20) {
+    score += 15;
   }
 
-  if (count === 3) {
-    return 50;
-  }
-
-  if (count <= 5) {
-    return 65;
-  }
-
-  if (count <= 10) {
-    return 80;
-  }
-
-  return 95;
+  return Math.max(0, Math.min(score, 100));
 }
 
 function getFitScore(gameName: string) {

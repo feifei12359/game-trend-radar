@@ -6,14 +6,17 @@ import path from "node:path";
 import { normalizeGameName } from "../lib/normalize";
 
 const QUERIES = [
-  "roblox new game",
-  "roblox new update",
   "roblox codes",
-  "roblox gameplay",
-  "roblox tower defense",
-  "steam new game",
-  "steam upcoming game",
-  "steam gameplay",
+  "roblox new codes",
+  "roblox update",
+  "roblox new update",
+  "roblox event",
+  "roblox update codes",
+  "steam demo",
+  "steam demo gameplay",
+  "steam playtest",
+  "steam indie demo",
+  "steam new demo",
 ] as const;
 
 const YOUTUBE_SEARCH_URL = "https://www.googleapis.com/youtube/v3/search";
@@ -128,6 +131,7 @@ type SearchItem = {
   };
   snippet?: {
     title?: string;
+    publishedAt?: string;
   };
 };
 
@@ -243,8 +247,19 @@ async function main() {
       }
 
       const items = response.items ?? [];
+      const now = Date.now();
+      const freshVideos = items.filter((item) => {
+        const publishedAt = item.snippet?.publishedAt;
+
+        if (!publishedAt) {
+          return false;
+        }
+
+        const published = new Date(publishedAt).getTime();
+        return Number.isFinite(published) && now - published < 24 * 60 * 60 * 1000;
+      });
       const stats: QueryStats = {
-        videos: items.length,
+        videos: freshVideos.length,
         candidates: 0,
         inserted: 0,
         updated: 0,
@@ -253,7 +268,7 @@ async function main() {
       totalVideos += stats.videos;
       console.log(`fetched videos: ${stats.videos}`);
 
-      for (const item of items) {
+      for (const item of freshVideos) {
         const videoId = item.id?.videoId?.trim();
         const title = item.snippet?.title?.trim();
 
