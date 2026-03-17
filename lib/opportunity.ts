@@ -165,11 +165,11 @@ export function classify(game: {
     return "ignore";
   }
 
-  if (y <= 5 && hasSignal) {
+  if (y <= 3 && hasSignal) {
     return "early_rising";
   }
 
-  if (y > 5 && y <= 30) {
+  if (y > 3 && y <= 15) {
     return "watchlist";
   }
 
