@@ -4,11 +4,15 @@ async function main() {
   console.log("start radar-daily");
 
   try {
-    console.log("step 1/2: fetch-youtube");
+    console.log("step 1/3: fetch-youtube");
     await runStep("fetch-youtube", "npm", ["run", "fetch:youtube"]);
     console.log("fetch-youtube done");
 
-    console.log("step 2/2: score-games");
+    console.log("step 2/3: check-keywords");
+    await runStep("check-keywords", "npm", ["run", "check:keywords"]);
+    console.log("check-keywords done");
+
+    console.log("step 3/3: score-games");
     await runStep("score-games", "npm", ["run", "score:games"]);
     console.log("score-games done");
 
